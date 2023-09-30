@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+    {% block title %} Create Deck {% endblock title %}
+    {% block header %}
+        <h1>Create a new deck!</h1>
+        <h4>Do what you're told, and nothing bad will happen!</h4>
+    {% endblock header %}
+
+    {% block content %}
+        <div class="col-12">
+            <div class="card border border-dark border-3 rounded-3">
+                <div class="row g-0 text-center">
+                    <div class="card-body">
+                    <h2 class="card-title">Create your deck here!</h2>
+                    <h6 class="card-subtle">Eventually I will be processing the data about your commander to give you ideas of what to search, and possibly help you track the less obvious things about your deck!</h6>
+                    <form action="" method="post">
+                        {{ form.csrf_token }}
+
+                        {{ form.deck_name.label }}
+                        {{ form.deck_name(class='form-control', placeholder='What would you like to Nickname this deck?') }}
+
+                        {{ form.description.label }}
+                        {{ form.description(class='form-control', placeholder='Leave us some notes to let others know how to play your deck or what its about!') }}
+                        
+                        {{ form.submit(class='btn btn-outline-dark w-100 mt-3') }}
+                    </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+        {% for deck in my_decks %}
+            <div class="col-4">
+                <div class="card m-2 bg-light border border-dark border-3 rounded-3">
+                    <div class="row g-0 p-2">
+                        <h1>{{deck.deck_name}}</h1>
+                        <h6>{{deck.description}}</h6>
+                    </div>
+                    <div class="row g-0 p-2">
+                        <div class="col-6 px-2">
+                            <div class="btn btn-dark w-100">To Deck</div>
+                        </div>
+                        <div class="col-6 px-2">
+                            <div class="btn btn-outline-dark w-100">Edit Details</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    
+    {% endblock content %}

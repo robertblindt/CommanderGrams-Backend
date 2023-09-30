@@ -1,0 +1,6 @@
+.ipynb_checkpoints
+__pycache__
+my_venv
+migrations
+*.db
+.env

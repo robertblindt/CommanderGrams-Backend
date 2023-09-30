@@ -1,0 +1,4 @@
+- When you first need to create the local db, make sure you run `flask db init`
+  - `flask db migrate -m "Create user table"` Creates the initial db.
+  - `flask db upgrade` upgrades to the new migration
+    - Repeat the last 2 steps to upgrade to new layout
