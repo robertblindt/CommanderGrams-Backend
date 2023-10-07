@@ -391,7 +391,7 @@ def deck_dump(deck_id):
         if len(card) > 5:
             card_split = card.lower().split('x ')
             # print(card_split)
-            clean_name = processor._clean_search_input(card_split[1],0)
+            clean_name = processor._clean_search_input('x '.join(card_split[1:]),0)
             for i in range(int(card_split[0])):
                 processor.scryfall_check_and_retrieve(clean_name,db)
                 processor.add_card_deckbuilder(clean_name, deck_id)
