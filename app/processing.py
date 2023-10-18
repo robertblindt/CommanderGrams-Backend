@@ -34,71 +34,7 @@ class Processing():
             return '-'.join(cleaned_input).lower()
         else:
             return '+'.join(cleaned_input).lower()
-
-    def parseEDHrec_for_card_names(self, card_name, db = db):
-        edh_cleaned_input_name = self._clean_search_input(card_name,0)
-
-        # Leaving this here in case I get worried that I screwed up the timing.  Try 5 minutes and then 2 seconds.
-        # if edh_cleaned_input_name == db.session.execute(db.select(Commander.search_name).where((Commander.search_name == edh_cleaned_input_name))).scalar() and datetime.now() - timedelta(seconds=2) < db.session.execute(db.select(Commander.last_scraped).where((Commander.search_name == edh_cleaned_input_name))).scalar():
-        if edh_cleaned_input_name == db.session.execute(db.select(Commander.search_name).where((Commander.search_name == edh_cleaned_input_name))).scalar() and datetime.now() - timedelta(weeks=5) < db.session.execute(db.select(Commander.last_scraped).where((Commander.search_name == edh_cleaned_input_name))).scalar():
-
-            print('You already have this card recently scraped')
-            return None
-        options = Options()
-        options.add_argument("--no-sandbox")
-        options.add_argument("--headless")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--verbose") 
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-features=dbus")       
-        # options.binary_location = "/usr/local/bin/chromedriver"
-        # driver = webdriver.Chrome(options=options)
-        # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-        # service_log_path = "--log-path=D:\\qc1.log"
-        log_path = "{}/chromedriver.log".format('/app')
-        service_args = ['--no-sandbox', '--headless','--disable-dev-shm-usage', '--verbose']
-        service = webdriver.chrome.service.Service(executable_path='/usr/local/bin/chromedriver-linux64/chromedriver', service_args = service_args, log_path=log_path)
-        print(service.service_args)    
-        
-        driver = webdriver.Chrome(options=options, service=service)
-        # driver = webdriver.Chrome(executable_path='/usr/local/bin/chromedriver', service_args=service_args, service_log_path=service_log_path)
-
-        url = f'https://edhrec.com/commanders/{self._clean_search_input(card_name,0)}'
-        # driver.implicitly_wait(10)
-        print(driver)
-        driver.get(url)
-        time.sleep(3)
-
-        if driver.find_elements(By.CLASS_NAME, 'page-heading')[0].text == 'Error 403':
-            print('Could not find Commander.  Please check your spelling!')
-            driver.close()
-            return None
-        # driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        y = 1000
-        prev_pos = 0
-        # I need to scroll through the page in order to load all the card tags so I can grab the card names.
-        for timer in range(0,70):
-            driver.execute_script("window.scrollTo(0, "+str(y)+")")
-            
-            current_scroll_height = driver.execute_script("return document.documentElement.scrollHeight")
-            # This should break when the page gets to the bottom instead of going for the full 7
-            # Selenium is a bit slow and laggy, so this only helps so much.
-            if current_scroll_height < y:
-                #print('breaking')
-                break  
-
-            y += 1000 
-            # print('scrolling')
-            time.sleep(.1)
-            
-        page_card_cont = []
-        for i in driver.find_elements(By.TAG_NAME, 'a'):
-            if i.get_attribute('href').split('/')[-2] == 'cards':
-                page_card_cont.append(i.get_attribute('href').split('/')[-1])
-        driver.close()
-        # Add the commander to the list of card to pull. Need to also add a Database insert here!
-        page_card_cont.append(self._clean_search_input(card_name,0))
-        return set(page_card_cont)
+    
     
     def insert_commander(self, card_name):
         search_name = self._clean_search_input(card_name,0)
@@ -352,7 +288,7 @@ class Processing():
             cleaned_suggestions.append(card_inst.replace('\n',' ').strip())
         oracle_body = ' '.join(cleaned_suggestions)
         # print(oracle_body)
-        oracle_body = re.sub(r" on | the | of | to | and | with | in ","",oracle_body)
+        oracle_body = re.sub(r"the |of |to |and |with |in ","",oracle_body)
         doc = npl(oracle_body)
         lemmas = []
         for token in doc:
@@ -375,14 +311,6 @@ class Processing():
     def retrieve_commandergrams(self, commander_name, db=db):
         commander_name = self._clean_search_input(commander_name,0)
         commander_id = db.session.execute(db.select(Commander.id).where(Commander.search_name == commander_name)).scalar()
-        # print(commander_id)
-        # commander_card_id = db.session.execute(db.select(Card.id).where(Card.search_name == commander_name)).scalar()
-        # commander_grams = db.session.execute(
-        #     db.select(Commander_gram)
-        #     .select_from(Commander)
-        #     .join(Commander_gram, Commander.id == Commander_gram.commander_id)
-        #     .where(Commander_gram.commander_id == commander_id)
-        # ).scalars().all()
         commander_grams = db.session.execute(
             db.select(Commander_gram, Commander)
             .where(Commander_gram.commander_id==commander_id)

@@ -1,9 +1,15 @@
-FROM --platform=linux/amd64 python:3.9.13
+FROM --platform=linux/amd64 python:3.9.13-slim
+
+# RUN pip insall gnupg gnupg2 gnupg1
 
 RUN apt-get update; apt-get clean
+RUN apt-get install -y wget
+RUN apt-get install -y gnupg
+
 RUN useradd apps
 RUN mkdir -p /home/apps && chown apps:apps /home/apps
 ENV CHROME_VERSION = "114.0.5735.91"
+
 # Adding trusting keys to apt for repositories
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
 
@@ -38,7 +44,11 @@ RUN unzip /tmp/chromedriver-linux64.zip -d /usr/local/bin/
 WORKDIR /app
 
 COPY requirements.txt requirements.txt 
-RUN pip install --no-cache-dir -r requirements.txt
+
+# This is only needed for the db side
+RUN apt-get -y install libpq-dev gcc
+
+RUN pip install -r requirements.txt --no-cache-dir
 
 COPY . .
 

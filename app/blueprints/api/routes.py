@@ -1,6 +1,6 @@
 from . import api
 from app import db
-from app.models import Card, User, Deck, Deck_collection, Deck_search
+from app.models import Card, User, Deck, Deck_collection, Deck_search, Commander
 from flask import request
 from .auth import basic_auth
 from .auth import basic_auth, token_auth
@@ -39,14 +39,11 @@ def commander_search():
             missing_fields.append(field)
     if missing_fields:
         return {'error': f"{', '.join(missing_fields)} must be in the request body"}, 400
-    # return data.get('commander')
-    card_retrieval_list = processor.parseEDHrec_for_card_names(data.get('commander'))
-    if card_retrieval_list:
-        processor.edhrec_list_db_check_and_retrieve(card_retrieval_list, data.get('commander'))
-        # print(form.commander.data)
-        processor.find_meaning(data.get('commander'))
-        return {'message':'Commander has been added or updated!'}
-    return {'error':'Either the commander has already been scraped, or the name is misspelled!'}
+    # I NEED TO CHECK THE DB IF I HAVE CG OF REQUESTED CARD.
+    # IF I HAVE IT, GET CARDS LIST FROM DB.  OTHERWISE TELL THEM WE DONT HAVE IT.
+    if processor._clean_search_input(data.get('commander'), 0) in db.session.execute(db.select(Commander.search_name)).scalars().all():
+        return {'message':'GOT IT!'}
+    return {'error':'Either the commander has not been scraped, or the name is misspelled!'}, 404
 
 
 # @api.route('/user')
@@ -395,7 +392,4 @@ def deck_dump(deck_id):
             for i in range(int(card_split[0])):
                 processor.scryfall_check_and_retrieve(clean_name,db)
                 processor.add_card_deckbuilder(clean_name, deck_id)
-
-
-
-    return {"YURRRR":"WE BALLLLL!!!"}
+    return {"message":"Deck transfer complete"}
