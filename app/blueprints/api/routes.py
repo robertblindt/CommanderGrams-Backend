@@ -45,6 +45,28 @@ def commander_search():
         return {'message':'GOT IT!'}
     return {'error':'Either the commander has not been scraped, or the name is misspelled!'}, 404
 
+# I need to take the output of the scraper EC2 instance (a list of card names) and run them into the previous insert.
+@api.route('/insertcommander', methods = ["POST"])
+def commander_insert():
+    # JSON Check
+    if not request.is_json:
+        return {'error': 'Your content-type must be application/json'}, 400
+    data = request.json
+    required_fields = ['card_list']
+    missing_fields = []
+    for field in required_fields:
+        if field not in data:
+            missing_fields.append(field)
+    if missing_fields:
+        return {'error': f"{', '.join(missing_fields)} must be in the request body"}, 400
+    card_retrieval_list=data.get('card_list')
+    if card_retrieval_list:
+        processor.edhrec_list_db_check_and_retrieve(card_retrieval_list, data.get('commander'))
+        # print(form.commander.data)
+        processor.find_meaning(data.get('commander'))
+        return {'message':'Commander has been added or updated!'}
+    return {'error':'Either the commander has already been scraped, or the name is misspelled!'}
+
 
 # @api.route('/user')
 # def see_users():
