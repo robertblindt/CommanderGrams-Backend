@@ -52,7 +52,7 @@ def commander_insert():
     if not request.is_json:
         return {'error': 'Your content-type must be application/json'}, 400
     data = request.json
-    required_fields = ['card_list']
+    required_fields = ['commander', 'card_list']
     missing_fields = []
     for field in required_fields:
         if field not in data:
@@ -305,7 +305,7 @@ def search_for_card():
         card_name = item.get('name')
         oracle_text = item.get('oracle_text')
         type_line = item.get('type_line')
-        card_img = item.get('image_uris',{1:2}).get('border_crop','https://static.tvtropes.org/pmwiki/pub/images/spongebob_chicken.png')
+        card_img = item.get('image_uris',{1:2}).get('border_crop','https://lh3.googleusercontent.com/d/1CQbMtyQLYltrEOjWLfgxqPIFzntvxNJP=w400-h400?authuser=0')
         card_dict = {
             "card_name":card_name,
             "oracle_text":oracle_text,
