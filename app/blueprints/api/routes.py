@@ -399,15 +399,18 @@ def deck_dump(deck_id):
     search_term = data.get('cards')
     print(search_term.split('\n'))
     cards_for_insert =  search_term.split('\n')
+    # Make sure its formatted correctly!
+    if not cards_for_insert[0].split('x ')[0].isnumeric():
+        return {"error":"Formatting Error. Please check that you removed deck identifiers like 'Mainboard'"}, 400
 
     previous_cards = db.session.execute(db.select(Deck_collection).where((Deck_collection.deck_id == deck_id))).scalars().all()
     print(previous_cards)
     for card in previous_cards:
         db.session.delete(card)
         db.session.commit()
-    print(cards_for_insert)
     for card in cards_for_insert:
-        if len(card) > 5:
+        # This should catch and pass by sideboard being in deck.  Wont let you know though...
+        if 'x ' in card:
             card_split = card.lower().split('x ')
             # print(card_split)
             clean_name = processor._clean_search_input('x '.join(card_split[1:]),0)
