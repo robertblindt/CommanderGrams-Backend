@@ -12,19 +12,20 @@ from webdriver_manager.chrome import ChromeDriverManager
 from app.models import User, Commander, Deck, Card, Keyword, Card_keyword, Commander_collection, Deck_collection, Commander_gram
 from datetime import datetime, timedelta
 
-# I wanted to run my database to test some logic, but I need the flask app for the DB to launch, and I havnt hooked up the form yet.
+
 from app import db
 
 npl = spacy.load("en_core_web_sm")
 
 class Processing():
-    # This module is the heart of the card word processing and database inserts.
-    # The scrape procedure goes: 
-    # User requests card => Processing cleans the input, Checks if the card is in the database, calls to EDHrec to scrape for cards related (Check if cards have been scraped within X days) => Processing reformats the names, checks if the card is already in the database, calls Scryfall to fill in cards that aren't already there => While inserting, a connection should be made in Commander_collections =>
+    '''
+    This module is the heart of the card word processing and database inserts.
+    The scrape procedure goes: 
+    Admin/User requests card => Processing cleans the input, Checks if the card is in the database, {if admin} calls to EDHrec to scrape for cards related (Check if cards have been scraped within X days) => Processing reformats the names, checks if the card is already in the database, calls Scryfall to fill in cards that aren't already there => While inserting, a connection should be made in Commander_collections => Does NLP and saves to database => {if user} Shows the common lemmatized n_gram. 
+    '''
 
     def _clean_search_input(self, card_name,use):
         # 0 for EDH Rec end points, 1 (or anything) for Scryfall '+' joined for Scryfalls fuzzy search
-        # print(card_name)
         if '//' in card_name:
             card_name = card_name.split('//')[0]
         card_name = card_name.replace("'", "")
@@ -37,14 +38,10 @@ class Processing():
     
     
     def insert_commander(self, card_name):
+        # Checks if commander is in db.  If not, add them.
         search_name = self._clean_search_input(card_name,0)
-        # print(db.session.execute(db.select(Commander.search_name).where((Commander.search_name == search_name))).scalar(), search_name)
         if search_name == db.session.execute(db.select(Commander.search_name).where((Commander.search_name == search_name))).scalar():
-            # Update the last scraped column!
-            commander_update = db.session.execute(db.select(Commander).where((Commander.search_name == search_name))).scalar()
-            # db.session.get(Commander,db.session.execute(db.select(Commander).where((Commander.search_name == search_name))))
-            #db.session.execute(db.select(Commander).where((Commander.search_name == search_name))).scalar()
-            
+            commander_update = db.session.execute(db.select(Commander).where((Commander.search_name == search_name))).scalar()            
             setattr(commander_update,'last_scraped',datetime.now())
             db.session.commit()
         else:
@@ -62,7 +59,6 @@ class Processing():
             card_id = db.session.execute(db.select(Card.id).where(Card.search_name == card)).scalar()
             if card_id:
                 if db.session.execute(db.select(Commander_collection).where((Commander_collection.card_id == card_id) & (Commander_collection.commander_id == commander_id))).scalar():
-                    # This means the card has already been connected to this commander in the past.
                     pass
                 else:
                     commander_card = Commander_collection(commander_id=commander_id, card_id=card_id)
@@ -71,14 +67,12 @@ class Processing():
 
     
     def scryfall_check_and_retrieve(self,card,db):
-        # Whenever I retrieve anything I should do this type of if statment to handle if The card already exsists in my db.
+        # Check if I have the card and then get it from scryfall if I dont.
         if db.session.execute(db.select(Card).where(Card.search_name == card)).scalar(): 
                     print('I already have this card!')
                     pass
-        # ALL THE DB STUFF NEEDS TO BE ADDED!
         else:
             scryfall_return = self.get_scryfall_json_data_fuzzy(card)
-            # 'error' is the object return when there is an unscussesful full
             if scryfall_return.get('object') == 'error':
                 print(f'Card {card} could not be found on Scryfall')
             else:
@@ -88,6 +82,7 @@ class Processing():
             time.sleep(0.125)
 
     def edhrec_list_db_check_and_retrieve(self,card_list, commander,db = db):
+        # Loops through list of cards retrieved from EDHrec
         for card in card_list:
             self.scryfall_check_and_retrieve(card,db)
         self.insert_commander(commander)
@@ -96,12 +91,14 @@ class Processing():
 
 
     def get_scryfall_json_data_fuzzy(self, card_name):
+        # Do fuzzy search on scryfall
         url=f'https://api.scryfall.com/cards/named?fuzzy={self._clean_search_input(card_name, 1)}'
         response = requests.get(url)
         j = response.json()
         return j
     
     def search_cards(self,card_request):
+        # Do search for exact card name from EDHrec
         clean_name = self._clean_search_input(card_request,1)
         url=f'https://api.scryfall.com/cards/search?q={clean_name}'
         # print(url)
@@ -111,19 +108,19 @@ class Processing():
         return cards
     
     def add_card_deckbuilder(self, scryfall_card, deck_id, db=db):
+        # add card to deck
         if type(scryfall_card) == type('string'):
             clean_name = self._clean_search_input(scryfall_card,0)
         else:
             clean_name = self._clean_search_input(scryfall_card.get('name'),0)
-        # print(clean_name)
         self.scryfall_check_and_retrieve(clean_name,db)
         requested_card_id = db.session.execute(db.select(Card.id).where(Card.search_name == clean_name)).scalar()
-        # print(requested_card_id, deck_id)
         dc_card = Deck_collection(card_id=requested_card_id, deck_id=deck_id, is_commander=False, is_maindeck=True)
         db.session.add(dc_card)
         db.session.commit()
 
     def remove_card_deckbuilder(self, scryfall_card, deck_id, db=db):
+        # Remove card from a deck
         if type(scryfall_card) == type('string'):
             clean_name = self._clean_search_input(scryfall_card,0)
         else:
@@ -136,9 +133,9 @@ class Processing():
             db.session.commit()
 
     def insert_card(self, scryfall_return, search_name):
+        # Insert card from Scryfall.
+        # Lots of ternary due to the multiple shapes of data that the cards can be in
         if scryfall_return.get('card_faces'):
-            # Scrape multi_cardface cards (split cards, flip cards, whatever else)
-            # print('Double faced card!')
             for i, card_half in enumerate(scryfall_return.get('card_faces')):
                 if card_half.get('image_uris'):
                     card_name = card_half.get('name')
@@ -211,15 +208,9 @@ class Processing():
                         double_sided_pointer = self._clean_search_input(scryfall_return.get('card_faces')[0].get('name'),0)
                     card_level_keywords = scryfall_return.get('keywords')
                     side_level_keywords = card_half.get('keywords')
-                        
-                    #print(card_name, search_name, oracle_text, type_line, power, toughness, mana_cost, cmc, color_identity, card_img)
-                    # print('Hold your breath! Im trying to insert!')
-                # So from here I need to deal with handling Colorless color_identities, Converting None to Null for nullable db inputs, 
                 card = Card(card_name = card_name, search_name = search_name, oracle_text = oracle_text, type_line = type_line, power = power, toughness = toughness, mana_cost = mana_cost, cmc = cmc, color_identity = color_identity, card_img = card_img, double_sided_pointer = double_sided_pointer)
                 db.session.add(card) 
                 db.session.commit()
-                # NOW I NEED TO DEAL WITH KEYWORDS! Things like Trample and Extort are in here, but also things like Treasure.  I might want to use some rules text for effects like extort for NLP.
-                # Concat the two lists, (need to deal with Nones) loop through, check if the name is in keywords, if not add to keywords, then create connection between card ID and keyword.
                 if card_level_keywords == None:
                     card_level_keywords = []
                 if side_level_keywords == None:
@@ -230,12 +221,10 @@ class Processing():
                         new_keyword = Keyword(keyword_name=keyword)
                         db.session.add(new_keyword)
                         db.session.commit()
-                    # new_card_keyword = Card_keyword(keyword_id = db.session.execute(db.select(Keyword).where(Keyword.keyword_name == keyword)).scalar(),card_id = )
                     keyword_id = db.session.execute(db.select(Keyword.id).where(Keyword.keyword_name == keyword)).scalar()
                     card_keyword_inst = Card_keyword(keyword_id=keyword_id, card_id=card_id)
                     db.session.add(card_keyword_inst)
                     db.session.commit()
-
         else:
             card_name = scryfall_return.get('name')
             search_name = search_name
@@ -258,9 +247,6 @@ class Processing():
             color_identity = ''.join(scryfall_return.get('color_identity'))
             card_img = scryfall_return.get('image_uris').get('border_crop' )
             keywords = scryfall_return.get('keywords')
-            #print(card_name, search_name, oracle_text, type_line, power, toughness, mana_cost, cmc, color_identity, card_img)
-            # print('Hold your breath! Im trying to insert!')
-        # So from here I need to deal with handling Colorless color_identities, Converting None to Null for nullable db inputs, 
             card = Card(card_name = card_name, search_name = search_name, oracle_text = oracle_text, type_line = type_line, power = power, toughness = toughness, mana_cost = mana_cost, cmc = cmc, color_identity = color_identity, card_img = card_img)
             db.session.add(card) 
             db.session.commit()
@@ -272,22 +258,20 @@ class Processing():
                     new_keyword = Keyword(keyword_name=keyword)
                     db.session.add(new_keyword)
                     db.session.commit()
-                # new_card_keyword = Card_keyword(keyword_id = db.session.execute(db.select(Keyword).where(Keyword.keyword_name == keyword)).scalar(),card_id = )
                 keyword_id = db.session.execute(db.select(Keyword.id).where(Keyword.keyword_name == keyword)).scalar()
                 card_keyword_inst = Card_keyword(keyword_id=keyword_id, card_id=card_id)
                 db.session.add(card_keyword_inst)
                 db.session.commit()
 
     def find_meaning(self, commander_name, db=db):
+        # This is where I create and count my n_grams.  It is very basic, but it has shown a few cool things.  Its good with commanders that are 'on the rails'.
         commander_name = self._clean_search_input(commander_name,0)
         commander_id = (db.session.execute(db.select(Commander.id).where(Commander.search_name == commander_name)).scalar())
         cards_ot = db.session.execute(db.select(Card.oracle_text).select_from(Card).join(Commander_collection, Card.id == Commander_collection.card_id).where(Commander_collection.commander_id == commander_id)).scalars().all()
-        # print(cards_ot)
         cleaned_suggestions = []
         for card_inst in cards_ot:
             cleaned_suggestions.append(card_inst.replace('\n',' ').strip())
         oracle_body = ' '.join(cleaned_suggestions)
-        # print(oracle_body)
         oracle_body = re.sub(r"the |of |to |and |with |in ","",oracle_body)
         doc = npl(oracle_body)
         lemmas = []
@@ -309,6 +293,7 @@ class Processing():
                     db.session.commit()
     
     def retrieve_commandergrams(self, commander_name, db=db):
+        # DB query to get commandergrams
         commander_name = self._clean_search_input(commander_name,0)
         commander_id = db.session.execute(db.select(Commander.id).where(Commander.search_name == commander_name)).scalar()
         commander_grams = db.session.execute(
@@ -316,12 +301,9 @@ class Processing():
             .where(Commander_gram.commander_id==commander_id)
             .join(Commander, Commander_gram.commander_id == Commander.id)).all()
         return_dict_list = []
-        # print(commander_grams)
         for phrase in commander_grams:
-            # print(phrase)
             grams = phrase[0].to_dict()
             card = phrase[1].to_dict()
-            # print(card)
             return_dict = {
                 "id":grams.get('id'),
                 "n_gram":grams.get('n_gram'),
@@ -330,49 +312,19 @@ class Processing():
                 "card_img":card.get('card_img')
             }
             return_dict_list.append(return_dict)
-        # commander_grams
-    
-        # commander_grams = db.session.execute(db.select(Commander_gram).select_from(Card).join(Card, Card.id == commander_card_id).where(Commander_gram.commander_id == commander_id)).scalars().all()
-
-    #     result_list = [
-    # {
-    #     "id": commander_gram.id,
-    #     "n_gram": commander_gram.n_gram,
-    #     "n_count": commander_gram.n_count,
-    #     "commander_id": commander_gram.commander_id,
-    #     "card_name": card_name, 
-    # }
-    # for commander_gram, card_name in commander_grams]
-        # print(commander_grams)
         return return_dict_list
     
     def deck_count(self, search_terms, deck_id):
+        # Does the 'how many times does "deal 1" happen'
         card_nums = db.session.execute(db.select(Deck_collection.card_id).where(Deck_collection.deck_id == deck_id)).scalars().all()
         cards_o_text = db.session.execute(
             db.select(Card.oracle_text).where(Card.id.in_(card_nums))
         ).scalars().all()
         deck_body = ' '.join(cards_o_text)
-        # print(card_nums)
-        # print(cards_o_text)
-        # print(deck_body)
         return_dict_lst = []
         for term in search_terms:
             phrase = term.to_dict()
             instances = deck_body.count(phrase.get('search_term'))
             phrase['count'] = instances
             return_dict_lst.append(phrase)
-        # print(return_dict_lst)
         return return_dict_lst
-    
-    
-
-
-
-# check_function = Processing()
-# ob_edhREC_list = check_function.parseEDHrec_for_card_names('Ob Nixilis, Captive Kingpin')
-# check_function._clean_search_input('Ob Nixilis, Captain Kingpin',0)
-# print(ob_edhREC_list)
-# check_function.edhrec_list_db_check_and_retrieve(ob_edhREC_list)
-# check_function.get_json_data_fuzzy("ob+nixilis+captive+kingpin")
-# check_function.parseEDHrec_for_card_names('ob-nixilis-captive-kingpin')
-# print(ob_edhREC_list[0])
