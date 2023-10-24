@@ -48,12 +48,10 @@ If you want to run the whole app locally, you will need to change the base API u
 
 
 ## Project Overview
-This was a delve into creating a CRUD application, and working with a full stack project.
-- Used Flask, PostgreSQL, and React
+Organizing data for efficient storage and accessability was a fun task.  During the exploratory data analysis phase of this project I found the initial shape of the database somewhat apparent, but to turn back around and retrieve the data to display the results was a bit more complicated.  Storing a deck for a person vs a collection of cards associated with a singular card is the same request with just different destination tables.
+- Used Flask and PostgreSQL to create an API to collect and store data
     - Used the return of scraped pages to retrieve data from an API.
     - Processed and stored data in order to analyze collections of text in a SQL database
-    - Used Sklearn, Spacy, and Regex to clean and analyze the meaningful data.
-    - Used React to create and log users, create decks, and show card data and the results of analysis
 
 ### Database Desgin:
 ![Database ERD](CommanderGrams_ERD.png)
@@ -62,7 +60,7 @@ Magic the Gathering cards are a little messy as data goes.  There are a variety 
 ### Methodology:
 The initial plan for this app was to scrape data for users live, but that was far too slow and selenium can be a little glitchy at times.  As a result, I will be scraping and processing data in the background as an administrative task, and serving up the data I have to users.
 
-The exact explanation of where data is being pulled from, and how it is being given back to the user is in the parent [README]() to this.
+The exact explanation of where data is being pulled from, and how it is being given back to the user is in the parent [README](https://github.com/robertblindt/CommanderGrams-Parent) to this.
 
 ## Future Improvements
 - Fix multi-face card retrieval
@@ -89,3 +87,4 @@ The exact explanation of where data is being pulled from, and how it is being gi
         - Altering the token auth, and handling the search bar and buttons with a boolean associated with `localStorage.getItem('token') == current_deck_id` (current_deck_id is not the actual variable)
     - Add a 'Private' column in decks to allow people not to report their decks publicly
 
+*[Parent Project Repository](https://github.com/robertblindt/CommanderGrams-Parent)*
