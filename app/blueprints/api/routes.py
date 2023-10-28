@@ -418,3 +418,11 @@ def deck_dump(deck_id):
                 processor.scryfall_check_and_retrieve(clean_name,db)
                 processor.add_card_deckbuilder(clean_name, deck_id)
     return {"message":"Deck transfer complete"}
+
+
+@api.route('/commanders', methods=["GET"])
+def get_commanders():
+    commanders = db.session.execute(
+    db.select(Commander.commander_name)).scalars().all()
+    # print(return_dict_lst)
+    return commanders
