@@ -1,6 +1,6 @@
 from . import api
 from app import db
-from app.models import Card, User, Deck, Deck_collection, Deck_search, Commander
+from app.models import Card, User, Deck, Deck_collection, Deck_search, Commander, Commander_gram
 from flask import request
 from .auth import basic_auth
 from .auth import basic_auth, token_auth
@@ -422,7 +422,14 @@ def deck_dump(deck_id):
 
 @api.route('/commanders', methods=["GET"])
 def get_commanders():
+    # commanders = db.session.execute(
+    #     db.select(Commander.commander_name)).scalars().all()
     commanders = db.session.execute(
-    db.select(Commander.commander_name)).scalars().all()
-    # print(return_dict_lst)
+        db.select(Commander_gram.commander_id).distinct()
+        ).scalars().all()
+    commanders = db.session.execute(
+        db.select(Commander.commander_name).where(Commander.id.in_(db.session.execute(
+        db.select(Commander_gram.commander_id).distinct()
+        ).scalars().all()))).scalars().all()
+    # print(commanders)
     return commanders
