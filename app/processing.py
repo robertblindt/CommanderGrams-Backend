@@ -11,6 +11,7 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from app.models import User, Commander, Deck, Card, Keyword, Card_keyword, Commander_collection, Deck_collection, Commander_gram
 from datetime import datetime, timedelta
+from unidecode import unidecode
 
 
 from app import db
@@ -28,6 +29,7 @@ class Processing():
         # 0 for EDH Rec end points, 1 (or anything) for Scryfall '+' joined for Scryfalls fuzzy search
         if '//' in card_name:
             card_name = card_name.split('//')[0]
+        card_name = unidecode(card_name)
         card_name = card_name.replace("'", "")
         word_pat = re.compile("[A-Za-z]+")
         cleaned_input = re.findall(word_pat, card_name)
