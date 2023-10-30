@@ -449,4 +449,4 @@ def get_commanders():
             return {'error': f"{', '.join(missing_fields)} must be in the request body"}, 400
         scrape_needed = processor.check_commander(data.get('cardName'))
         # print(scrape_needed)
-        return scrape_needed, 200 
+        return {'data':scrape_needed}, 200 
