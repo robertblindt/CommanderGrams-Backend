@@ -420,16 +420,33 @@ def deck_dump(deck_id):
     return {"message":"Deck transfer complete"}
 
 
-@api.route('/commanders', methods=["GET"])
+@api.route('/commanders', methods=["GET","POST"])
 def get_commanders():
-    # commanders = db.session.execute(
-    #     db.select(Commander.commander_name)).scalars().all()
-    commanders = db.session.execute(
-        db.select(Commander_gram.commander_id).distinct()
-        ).scalars().all()
-    commanders = db.session.execute(
-        db.select(Commander.commander_name).where(Commander.id.in_(db.session.execute(
-        db.select(Commander_gram.commander_id).distinct()
-        ).scalars().all()))).scalars().all()
-    # print(commanders)
-    return commanders
+    if request.method == "GET":
+        commanders = db.session.execute(
+            db.select(Commander_gram.commander_id).distinct()
+            ).scalars().all()
+        commanders = db.session.execute(
+            db.select(Commander.commander_name).where(Commander.id.in_(db.session.execute(
+            db.select(Commander_gram.commander_id).distinct()
+            ).scalars().all()))).scalars().all()
+        # print(commanders)
+        return commanders
+    
+    # Check if commander needs to be scraped
+    if request.method == "POST":
+        if not request.is_json:
+            return {'error': 'Your content-type must be application/json'}, 400
+        # Get the data from the request body
+        data = request.json
+        # Validate incoming data
+        required_fields = ['cardName']
+        missing_fields = []
+        for field in required_fields:
+            if field not in data:
+                missing_fields.append(field)
+        if missing_fields:
+            return {'error': f"{', '.join(missing_fields)} must be in the request body"}, 400
+        scrape_needed = processor.check_commander(data.get('cardName'))
+        # print(scrape_needed)
+        return scrape_needed, 200 
