@@ -322,11 +322,11 @@ class Processing():
         cards_o_text = db.session.execute(
             db.select(Card.oracle_text).where(Card.id.in_(card_nums))
         ).scalars().all()
-        deck_body = ' '.join(cards_o_text)
+        deck_body = ' '.join(cards_o_text).lower()
         return_dict_lst = []
         for term in search_terms:
             phrase = term.to_dict()
-            instances = deck_body.count(phrase.get('search_term'))
+            instances = deck_body.count(phrase.get('search_term').lower())
             phrase['count'] = instances
             return_dict_lst.append(phrase)
         return return_dict_lst
