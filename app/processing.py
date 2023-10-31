@@ -332,7 +332,7 @@ class Processing():
     
     def check_commander(self, commander_name, db=db):
         search_name = self._clean_search_input(commander_name,0)
-        if search_name == db.session.execute(db.select(Commander.search_name).where((Commander.search_name == search_name))).scalar() and datetime.now()-timedelta(weeks=4) >= db.session.execute(db.select(Commander.last_scraped).where((Commander.search_name == search_name))).scalar():
+        if search_name == db.session.execute(db.select(Commander.search_name).where((Commander.search_name == search_name))).scalar() and datetime.now()-timedelta(weeks=4) <= db.session.execute(db.select(Commander.last_scraped).where((Commander.search_name == search_name))).scalar():
             return True
         else:
             return False
